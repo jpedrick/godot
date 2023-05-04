@@ -2465,10 +2465,15 @@ bool EditorFileSystem::_scan_extensions() {
 
 	Vector<String> extensions_added;
 	Vector<String> extensions_removed;
+	Vector<String> extensions_changed;
+	auto em = GDExtensionManager::get_singleton();
 
 	for (const String &E : extensions) {
-		if (!GDExtensionManager::get_singleton()->is_extension_loaded(E)) {
+		if (!em->is_extension_loaded(E)) {
 			extensions_added.push_back(E);
+		}
+		else if ( em->is_extension_modified_since_loaded(E) ) {
+			extensions_changed.push_back(E);
 		}
 	}
 
@@ -2507,6 +2512,16 @@ bool EditorFileSystem::_scan_extensions() {
 		GDExtensionManager::LoadStatus st = GDExtensionManager::get_singleton()->unload_extension(extensions_removed[i]);
 		if (st == GDExtensionManager::LOAD_STATUS_FAILED) {
 			EditorNode::get_singleton()->add_io_error("Error removing extension: " + extensions_added[i]);
+		} else if (st == GDExtensionManager::LOAD_STATUS_NEEDS_RESTART) {
+			needs_restart = true;
+		}
+	}
+
+	for (const auto& E : extensions_changed){
+		needs_restart = true;
+		GDExtensionManager::LoadStatus st = em->reload_extension(E);
+		if ( st == GDExtensionManager::LOAD_STATUS_FAILED ){
+			EditorNode::get_singleton()->add_io_error("Error removing extension: " + E);
 		} else if (st == GDExtensionManager::LOAD_STATUS_NEEDS_RESTART) {
 			needs_restart = true;
 		}

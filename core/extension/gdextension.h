@@ -62,6 +62,7 @@ class GDExtension : public Resource {
 
 	GDExtensionInitialization initialization;
 	int32_t level_initialized = -1;
+	uint64_t modified_time = 0;
 
 protected:
 	static void _bind_methods();
@@ -83,6 +84,7 @@ public:
 	};
 
 	bool is_library_open() const;
+	bool is_modified_since_open() const;
 
 	InitializationLevel get_minimum_library_initialization_level() const;
 	void initialize_library(InitializationLevel p_level);

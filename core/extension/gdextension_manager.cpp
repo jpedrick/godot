@@ -60,8 +60,16 @@ GDExtensionManager::LoadStatus GDExtensionManager::load_extension(const String &
 }
 
 GDExtensionManager::LoadStatus GDExtensionManager::reload_extension(const String &p_path) {
-	return LOAD_STATUS_OK; //TODO
+	if ( gdextension_map.has(p_path) ){
+		return GDExtensionManager::LOAD_STATUS_NEEDS_RESTART;
+		//unload_extension(p_path);
+		//return load_extension(p_path);
+	}
+	else{
+		return LOAD_STATUS_NOT_LOADED;
+	}
 }
+
 GDExtensionManager::LoadStatus GDExtensionManager::unload_extension(const String &p_path) {
 	if (!gdextension_map.has(p_path)) {
 		return LOAD_STATUS_NOT_LOADED;
@@ -86,6 +94,14 @@ GDExtensionManager::LoadStatus GDExtensionManager::unload_extension(const String
 
 	gdextension_map.erase(p_path);
 	return LOAD_STATUS_OK;
+}
+
+bool GDExtensionManager::is_extension_modified_since_loaded(const String &p_path) const{
+	auto ex_it = gdextension_map.find(p_path);
+	if ( ex_it != gdextension_map.end() ){
+		return ex_it->value->is_modified_since_open();
+	}
+	return false;
 }
 
 bool GDExtensionManager::is_extension_loaded(const String &p_path) const {

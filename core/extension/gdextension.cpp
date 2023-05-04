@@ -429,6 +429,10 @@ void GDExtension::close_library() {
 	library = nullptr;
 }
 
+bool GDExtension::is_modified_since_open() const{
+	return modified_time != FileAccess::get_modified_time(library_path);
+}
+
 bool GDExtension::is_library_open() const {
 	return library != nullptr;
 }
