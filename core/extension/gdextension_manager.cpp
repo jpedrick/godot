@@ -60,14 +60,53 @@ GDExtensionManager::LoadStatus GDExtensionManager::load_extension(const String &
 }
 
 GDExtensionManager::LoadStatus GDExtensionManager::reload_extension(const String &p_path) {
-	if ( gdextension_map.has(p_path) ){
-		return GDExtensionManager::LOAD_STATUS_NEEDS_RESTART;
-		//unload_extension(p_path);
-		//return load_extension(p_path);
+#ifndef SUPPORT_DYNAMIC_GDEXTENSION_RELOAD
+	return LOAD_STATUS_NEEDS_RESTART;
+#else
+	auto extension_it = gdextension_map.find(p_path);
+	if (extension_it != gdextension_map.end()){
+		Ref<GDExtension> extension = extension_it->value;
+
+		auto reload_status = extension->reload();
+		if (reload_status != Error::OK){
+			return LOAD_STATUS_NEEDS_RESTART;
+		}
+
+		if (level >= 0) { // Already initialized up to some level.
+			int32_t minimum_level = extension->get_minimum_library_initialization_level();
+			if (minimum_level < MIN(level, GDExtension::INITIALIZATION_LEVEL_SCENE)) {
+				return LOAD_STATUS_NEEDS_RESTART;
+			}
+			// Deinitialize down to current level.
+			for (int32_t i = level; i >= minimum_level; i--) {
+				extension->deinitialize_library(GDExtension::InitializationLevel(i));
+			}
+		}
+
+		for (const KeyValue<String, String> &kv : extension->class_icon_paths) {
+			gdextension_class_icon_paths.erase(kv.key);
+		}
+
+		if (level >= 0) { // Already initialized up to some level.
+			int32_t minimum_level = extension->get_minimum_library_initialization_level();
+			if (minimum_level < MIN(level, GDExtension::INITIALIZATION_LEVEL_SCENE)) {
+				return LOAD_STATUS_NEEDS_RESTART;
+			}
+			// Initialize up to current level.
+			for (int32_t i = minimum_level; i <= level; i++) {
+				extension->initialize_library(GDExtension::InitializationLevel(i));
+			}
+		}
+
+		for (const KeyValue<String, String> &kv : extension->class_icon_paths) {
+			gdextension_class_icon_paths[kv.key] = kv.value;
+		}
+
+		return LOAD_STATUS_OK;
 	}
-	else{
-		return LOAD_STATUS_NOT_LOADED;
-	}
+
+	return LOAD_STATUS_NOT_LOADED;
+#endif
 }
 
 GDExtensionManager::LoadStatus GDExtensionManager::unload_extension(const String &p_path) {

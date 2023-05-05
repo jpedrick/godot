@@ -245,8 +245,11 @@ void GDExtension::_register_extension_class(GDExtensionClassLibraryPtr p_library
 
 	StringName class_name = *reinterpret_cast<const StringName *>(p_class_name);
 	StringName parent_class_name = *reinterpret_cast<const StringName *>(p_parent_class_name);
+
 	ERR_FAIL_COND_MSG(!String(class_name).is_valid_identifier(), "Attempt to register extension class '" + class_name + "', which is not a valid class identifier.");
+#ifndef SUPPORT_DYNAMIC_GDEXTENSION_RELOAD
 	ERR_FAIL_COND_MSG(ClassDB::class_exists(class_name), "Attempt to register extension class '" + class_name + "', which appears to be already registered.");
+#endif
 
 	Extension *parent_extension = nullptr;
 
@@ -381,6 +384,7 @@ void GDExtension::_unregister_extension_class(GDExtensionClassLibraryPtr p_libra
 	Extension *ext = &self->extension_classes[class_name];
 	ERR_FAIL_COND_MSG(ext->gdextension.children.size(), "Attempt to unregister class '" + class_name + "' while other extension classes inherit from it.");
 
+	OS::get_singleton()->print("Unregistering extension class %s\n",String(class_name).utf8().get_data());
 	ClassDB::unregister_extension_class(class_name);
 	if (ext->gdextension.parent != nullptr) {
 		ext->gdextension.parent->children.erase(&ext->gdextension);
@@ -392,6 +396,21 @@ void GDExtension::_get_library_path(GDExtensionClassLibraryPtr p_library, GDExte
 	GDExtension *self = reinterpret_cast<GDExtension *>(p_library);
 
 	*(String *)r_path = self->library_path;
+}
+
+Error GDExtension::reload(){
+	auto old_library = library;
+
+	library = nullptr;
+
+	auto status = open_library(library_path, entry_symbol);
+	OS::get_singleton()->print("Opened new, closing old: %s %p\n",String(library_path).utf8().get_data(), old_library);
+	if( old_library ){
+		auto close_status = OS::get_singleton()->close_dynamic_library(old_library);
+		ERR_FAIL_COND_V_MSG(close_status != Error::OK, close_status, "Can't close dynamic library: " + library_path + ", error:.");
+	}
+
+	return status;
 }
 
 Error GDExtension::open_library(const String &p_path, const String &p_entry_symbol) {
@@ -415,6 +434,9 @@ Error GDExtension::open_library(const String &p_path, const String &p_entry_symb
 
 	if (initialization_function(&gdextension_interface, this, &initialization)) {
 		level_initialized = -1;
+		modified_time = FileAccess::get_modified_time(library_path);
+		entry_symbol = p_entry_symbol;
+
 		return OK;
 	} else {
 		ERR_PRINT("GDExtension initialization function '" + p_entry_symbol + "' returned an error.");

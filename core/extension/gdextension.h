@@ -43,6 +43,7 @@ class GDExtension : public Resource {
 
 	void *library = nullptr; // pointer if valid,
 	String library_path;
+	String entry_symbol;
 
 	struct Extension {
 		ObjectGDExtension gdextension;
@@ -75,6 +76,7 @@ public:
 
 	Error open_library(const String &p_path, const String &p_entry_symbol);
 	void close_library();
+	Error reload();
 
 	enum InitializationLevel {
 		INITIALIZATION_LEVEL_CORE = GDEXTENSION_INITIALIZATION_CORE,

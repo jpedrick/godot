@@ -2518,13 +2518,18 @@ bool EditorFileSystem::_scan_extensions() {
 	}
 
 	for (const auto& E : extensions_changed){
-		needs_restart = true;
+		OS::get_singleton()->print("Extension %s changed, needs reload.\n", E.utf8().get_data());
 		GDExtensionManager::LoadStatus st = em->reload_extension(E);
-		if ( st == GDExtensionManager::LOAD_STATUS_FAILED ){
-			EditorNode::get_singleton()->add_io_error("Error removing extension: " + E);
+		if (st == GDExtensionManager::LOAD_STATUS_FAILED){
+			ERR_PRINT("Error loading GDExtension: " + E);
+			EditorNode::get_singleton()->add_io_error("Error reloading extension: " + E);
 		} else if (st == GDExtensionManager::LOAD_STATUS_NEEDS_RESTART) {
+			WARN_PRINT("GDExtension changed, need restart: " + E);
 			needs_restart = true;
+		} else if(st == GDExtensionManager::LOAD_STATUS_OK) {
+			OS::get_singleton()->print("Extension %s reload OK.\n",E.utf8().get_data());
 		}
+
 	}
 
 	return needs_restart;

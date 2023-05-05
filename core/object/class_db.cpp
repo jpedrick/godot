@@ -34,6 +34,7 @@
 #include "core/object/script_language.h"
 #include "core/os/mutex.h"
 #include "core/version.h"
+#include "core/os/os.h"
 
 #define OBJTYPE_RLOCK RWLockRead _rw_lockr_(lock);
 #define OBJTYPE_WLOCK RWLockWrite _rw_lockw_(lock);
@@ -1538,8 +1539,15 @@ Variant ClassDB::class_get_default_property_value(const StringName &p_class, con
 void ClassDB::register_extension_class(ObjectGDExtension *p_extension) {
 	GLOBAL_LOCK_FUNCTION;
 
+#ifndef SUPPORT_DYNAMIC_GDEXTENSION_RELOAD
 	ERR_FAIL_COND_MSG(classes.has(p_extension->class_name), "Class already registered: " + String(p_extension->class_name));
+#else
+	if (classes.has(p_extension->class_name)){
+		unregister_extension_class(p_extension->class_name);
+	}
+#endif
 	ERR_FAIL_COND_MSG(!classes.has(p_extension->parent_class_name), "Parent class name for extension class not found: " + String(p_extension->parent_class_name));
+
 
 	ClassInfo *parent = classes.getptr(p_extension->parent_class_name);
 
